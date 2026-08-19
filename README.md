@@ -82,18 +82,22 @@ convenience wrappers; the command above works everywhere.
 ## Command-line usage
 
 ```bash
-python -m arxiv_radar run --days 30 --max-results 200
+python -m arxiv_radar run --days 30
 python -m arxiv_radar run --days 1 --output report.md
 python -m arxiv_radar run --days 14 --min-score 55
 ```
 
-The radar searches the last 30 days and scans up to 200 candidates, but writes
-only the ten highest-scoring papers to `report.md`. Every candidate outside the
-top ten is listed with its score and ranking evidence in `ignored.md`.
+The radar retrieves every paper submitted in the window (up to a generous
+`--max-results` ceiling), but writes only the ten highest-scoring papers to
+`report.md`. Every candidate outside the top ten is listed with its score and
+ranking evidence in `ignored.md`. A longer window therefore surfaces more
+papers than a shorter one.
 
 Useful options:
 
 - `--top N` changes the maximum number of reported papers (default: 10).
+- `--max-results N` caps how many candidates are scanned in the window
+  (default: 2000).
 - `--min-score N` sets the score at or above which a paper gets a full report
   entry (default: 55).
 - `--database PATH` changes the SQLite history file

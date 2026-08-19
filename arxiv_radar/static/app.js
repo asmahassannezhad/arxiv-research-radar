@@ -58,7 +58,7 @@ async function runRadar() {
     const today = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0,10);
     const targetDate = mode === "today" ? today : mode === "specific" ? $("targetDate").value : null;
     if (mode === "specific" && !targetDate) throw new Error("Choose the day you want to browse.");
-    const payload = {days:$("days").value, top_count:$("topCount").value, max_results:200};
+    const payload = {days:$("days").value, top_count:$("topCount").value};
     if (targetDate) payload.target_date = targetDate;
     update(await api("/api/run", {method:"POST", body:JSON.stringify(payload)}));
     $("runStatus").textContent = "Radar refreshed";

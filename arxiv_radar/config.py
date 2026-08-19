@@ -128,7 +128,7 @@ class Settings:
     geometric_context: list[str] = field(default_factory=lambda: GEOMETRIC_CONTEXT.copy())
     minimum_score: int = 40
     days: int = 30
-    max_results: int = 200
+    max_results: int = 2000
     # Paths
     output_path: Path = Path("report.md")
     database_path: Path = Path(".arxiv-radar/seen.sqlite3")

@@ -18,7 +18,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
     run = sub.add_parser("run", help="Fetch, rank and report new papers")
     run.add_argument("--days", type=int, default=30)
-    run.add_argument("--max-results", type=int, default=200)
+    run.add_argument("--max-results", type=int, default=2000, help="Maximum number of candidates to scan in the window (default: 2000)")
     run.add_argument("--top", type=int, default=10, help="Maximum number of papers to include in the report (default: 10)")
     run.add_argument("--min-score", type=int, default=55, help="Score at or above which a paper gets a full report entry")
     run.add_argument("--output", type=Path, default=Path("report.md"))

@@ -15,6 +15,10 @@ from .models import Paper
 API_URL = "https://export.arxiv.org/api/query"
 ATOM = {"atom": "http://www.w3.org/2005/Atom", "arxiv": "http://arxiv.org/schemas/atom"}
 
+# arXiv accepts large pages; a few hundred per request keeps URLs and memory
+# reasonable while minimising the number of requests (and thus rate-limiting).
+PAGE_SIZE = 200
+
 
 class ArxivFetchError(RuntimeError):
     pass
@@ -53,26 +57,18 @@ def parse_atom(xml_text: str) -> list[Paper]:
     return papers
 
 
-def _quoted(term: str) -> str:
-    escaped = term.replace('"', '')
-    return f'all:"{escaped}"'
-
-
 def build_queries(settings: Settings, start: datetime, end: datetime) -> list[str]:
+    """Return the search queries for a window.
+
+    A single category-restricted, date-bounded query is used. Because the radar
+    only keeps papers whose *primary* category is in ``settings.categories``,
+    this one query is a strict superset of any keyword or author sub-search, so
+    extra requests would only add rate-limiting risk without widening coverage.
+    Keyword and author relevance are applied later, during ranking.
+    """
     date_clause = f"submittedDate:[{start:%Y%m%d%H%M} TO {end:%Y%m%d%H%M}]"
     category_clause = " OR ".join(f"cat:{category}" for category in settings.categories)
-    queries = [f"({category_clause}) AND {date_clause}"]
-    # Keyword batches keep request URLs comfortably below common proxy limits.
-    for offset in range(0, len(settings.keywords), 8):
-        terms = " OR ".join(_quoted(k) for k in settings.keywords[offset:offset + 8])
-        queries.append(f"({terms}) AND ({category_clause}) AND {date_clause}")
-    for offset in range(0, len(settings.author_keywords), 8):
-        authors = " OR ".join(
-            f'au:"{author.replace(chr(34), "")}"'
-            for author in settings.author_keywords[offset:offset + 8]
-        )
-        queries.append(f"({authors}) AND ({category_clause}) AND {date_clause}")
-    return queries
+    return [f"({category_clause}) AND {date_clause}"]
 
 
 def category_is_allowed(primary_category: str, settings: Settings) -> bool:
@@ -82,17 +78,51 @@ def category_is_allowed(primary_category: str, settings: Settings) -> bool:
     return primary_category in allowed
 
 
-def _request(query: str, max_results: int, timeout: float = 30.0) -> list[Paper]:
-    params = {"search_query": query, "start": 0, "max_results": max_results, "sortBy": "submittedDate", "sortOrder": "descending"}
+def _retry_after_seconds(exc: HTTPError) -> float | None:
+    header = exc.headers.get("Retry-After") if exc.headers else None
+    if not header:
+        return None
     try:
-        request = Request(
-            f"{API_URL}?{urlencode(params)}",
-            headers={"User-Agent": "arxiv-spectral-geometry-radar/0.1 (research tool)"},
-        )
-        with urlopen(request, timeout=timeout) as response:
-            return parse_atom(response.read().decode("utf-8"))
-    except (HTTPError, URLError, TimeoutError, ET.ParseError, UnicodeDecodeError) as exc:
-        raise ArxivFetchError(f"arXiv request failed: {exc}") from exc
+        return float(header)
+    except ValueError:
+        return None
+
+
+def _request(query: str, max_results: int, *, start_index: int = 0, timeout: float = 60.0, retries: int = 3) -> list[Paper]:
+    params = {
+        "search_query": query,
+        "start": start_index,
+        "max_results": max_results,
+        "sortBy": "submittedDate",
+        "sortOrder": "descending",
+    }
+    url = f"{API_URL}?{urlencode(params)}"
+    for attempt in range(retries + 1):
+        try:
+            request = Request(url, headers={"User-Agent": "arxiv-research-radar/0.2 (research tool)"})
+            with urlopen(request, timeout=timeout) as response:
+                return parse_atom(response.read().decode("utf-8"))
+        except HTTPError as exc:
+            # 429 (rate limited) and 503 (temporarily unavailable) are both arXiv
+            # asking us to slow down; back off and retry, honouring Retry-After.
+            if exc.code in (429, 503) and attempt < retries:
+                time.sleep(_retry_after_seconds(exc) or 5.0 * (attempt + 1))
+                continue
+            if exc.code in (429, 503):
+                raise ArxivFetchError(
+                    "arXiv is busy or rate-limiting requests right now "
+                    f"(HTTP {exc.code}). Please wait a minute and press Run radar again."
+                ) from exc
+            raise ArxivFetchError(f"arXiv request failed: {exc}") from exc
+        except (URLError, TimeoutError) as exc:
+            # Transient network/slowness (arXiv can be slow under load): back off and retry.
+            if attempt < retries:
+                time.sleep(3.0 * (attempt + 1))
+                continue
+            raise ArxivFetchError(f"arXiv request failed: {exc}") from exc
+        except (ET.ParseError, UnicodeDecodeError) as exc:
+            raise ArxivFetchError(f"arXiv request failed: {exc}") from exc
+    return []
 
 
 def fetch_recent(settings: Settings, *, now: datetime | None = None) -> list[Paper]:
@@ -104,20 +134,33 @@ def fetch_recent(settings: Settings, *, now: datetime | None = None) -> list[Pap
 
 
 def fetch_between(settings: Settings, *, start: datetime, end: datetime) -> list[Paper]:
-    """Fetch papers submitted in an explicit UTC date/time interval."""
+    """Fetch every paper submitted in an explicit UTC interval, up to
+    ``settings.max_results``, by paging through the arXiv results."""
     if start.tzinfo is None:
         start = start.replace(tzinfo=timezone.utc)
     if end.tzinfo is None:
         end = end.replace(tzinfo=timezone.utc)
+    query = build_queries(settings, start, end)[0]
     found: dict[str, Paper] = {}
-    queries = build_queries(settings, start, end)
-    per_query = max(20, min(settings.max_results, (settings.max_results // len(queries)) + 10))
-    for index, query in enumerate(queries):
-        if index:
+    offset = 0
+    while offset < settings.max_results:
+        if offset:
             time.sleep(settings.request_delay_seconds)
-        for paper in _request(query, per_query):
-            if category_is_allowed(paper.primary_category, settings) and start <= paper.submitted < end:
+        page_size = min(PAGE_SIZE, settings.max_results - offset)
+        page = _request(query, page_size, start_index=offset)
+        if not page:
+            break
+        reached_older_than_window = False
+        for paper in page:
+            if paper.submitted < start:
+                # Results are newest-first, so everything after this is older too.
+                reached_older_than_window = True
+                continue
+            if paper.submitted < end and category_is_allowed(paper.primary_category, settings):
                 found[paper.arxiv_id] = paper
+        if reached_older_than_window or len(page) < page_size:
+            break
+        offset += len(page)
     return sorted(found.values(), key=lambda p: p.submitted, reverse=True)[:settings.max_results]
 
 

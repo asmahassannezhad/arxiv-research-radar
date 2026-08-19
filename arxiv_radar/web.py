@@ -199,7 +199,7 @@ def create_app(root: Path | None = None) -> Flask:
         data = request.get_json(silent=True) or {}
         try:
             days = max(1, min(90, int(data.get("days", 30))))
-            max_results = max(10, min(500, int(data.get("max_results", 200))))
+            max_results = max(10, min(3000, int(data.get("max_results", service.settings.max_results))))
             top_count = max(1, min(50, int(data.get("top_count", 10))))
             raw_target_date = data.get("target_date")
             target_date = str(raw_target_date).strip() if raw_target_date is not None else None
