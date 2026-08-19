@@ -1,0 +1,89 @@
+# ============================================================================
+# arXiv Radar configuration
+# ----------------------------------------------------------------------------
+# This is the ONLY file you need to edit to point the radar at your own field.
+# Change the profile text and the search lists below, then run the radar.
+# Every setting is optional: delete a line to fall back to the built-in default.
+# Lines starting with "#" are comments and are ignored.
+# ============================================================================
+
+[profile]
+# Shown in the browser tab, the page heading, and report titles.
+site_title = "Spectral Geometry Radar"
+# Small line above the heading — e.g. your name or group.
+eyebrow = "Asma Hassannezhad’s research desk"
+# One-line description under the heading.
+tagline = "A quiet filter for the noisy edge of arXiv."
+
+[search]
+# arXiv categories to search. See https://arxiv.org/category_taxonomy
+# (math-ph automatically also matches its alias math.MP).
+categories = ["math.SP", "math.DG", "math.AP", "math.MG", "math-ph"]
+
+# Topic phrases used to query arXiv and to learn from your feedback.
+keywords = [
+    "spectral geometry", "Steklov", "Dirichlet-to-Neumann", "Laplace eigenvalue",
+    "Laplacian eigenvalue", "Laplacian eigenfunction", "mixed boundary conditions",
+    "hot spots",
+    "eigenvalue optimisation", "eigenvalue optimization", "extremal metric",
+    "harmonic map", "minimal surface", "free boundary minimal surface",
+    "hyperbolic surface", "random hyperbolic surface", "random surface",
+    "hyperbolic geometry", "hyperbolic manifold", "finite area", "nodal set",
+    "nodal domain", "Cheeger inequality", "Jammes", "Escobar", "orbifold",
+    "Hodge Laplacian", "geometric PDE", "capacity", "Robin",
+    "boundary eigenvalue problem", "p-Laplacian", "Paneitz", "biharmonic map",
+    "conformal geometry", "geometric analysis", "Riemannian geometry",
+    "Teichmüller space", "moduli space", "spectral convergence", "inverse spectral",
+]
+
+# Authors whose new papers you want surfaced (a small ranking signal only —
+# an off-topic paper can never rank highly on authorship alone).
+authors = [
+    "Antoine Métras", "Hélène Perrin", "Iosif Polterovich", "Alexandre Girouard",
+    "Bruno Colbois", "Ahmad El Soufi", "Nadirashvili", "Karpukhin", "Kokarev",
+    "Vinokurov", "Jammes", "Escobar", "Otal", "Rosas", "Schoen", "Wolpert",
+    "Yau", "Dodziuk", "Randol", "Polymerakis", "Levitin", "Capoferri", "Cakoni",
+    "Rudnick", "Fraser", "Brendle", "Rupflin", "Monk", "Laura Monk",
+    "Sugata Mondal", "Bram Petri", "Dorin Bucur", "Ilaria Fragalà",
+    "Ilaria Fragala", "Sher",
+]
+
+# Default search window in days (7–90) and how many candidates to scan.
+days = 30
+max_results = 200
+# Score at or above which a CLI report gives a paper a full entry.
+minimum_score = 40
+
+# ----------------------------------------------------------------------------
+# Advanced scoring (optional). Most people only edit the lists above.
+#
+# The transparent score = topic + importance + author_network + freshness +
+# proximity, each capped by the weights below. To tune how strongly individual
+# phrases count, uncomment and edit the tables further down.
+# ----------------------------------------------------------------------------
+
+[scoring.weights]
+topic = 40        # how closely the abstract matches your field
+importance = 30   # result language ("sharp", "optimal", "counterexample", ...)
+author_network = 10
+freshness = 10
+proximity = 10    # phrases signalling the paper is very close to your own work
+
+# Uncomment to override the built-in phrase weights (values are point scores).
+#
+# [scoring.high_topic]
+# "steklov eigenvalue" = 38
+# "dirichlet-to-neumann" = 38
+#
+# [scoring.medium_topic]
+# "nodal set" = 25
+# "minimal surface" = 25
+#
+# [scoring.impact_terms]
+# "sharp" = 6
+# "counterexample" = 7
+#
+# [scoring]
+# proximate = ["steklov", "dirichlet-to-neumann"]
+# machine_learning_context = ["transformer", "neural", "language model"]
+# geometric_context = ["manifold", "surface", "riemannian"]

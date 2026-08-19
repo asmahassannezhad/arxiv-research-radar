@@ -1,0 +1,50 @@
+#!/bin/zsh
+set -u
+
+APP_MACOS_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(cd "$APP_MACOS_DIR/../../.." && pwd)"
+cd "$PROJECT_DIR" || exit 1
+
+URL="http://127.0.0.1:8765/"
+PID_FILE=".arxiv-radar/web.pid"
+LOG_FILE=".arxiv-radar/web.log"
+
+mkdir -p ".arxiv-radar"
+
+healthy_server() {
+  /usr/bin/curl -fsS "$URL" >/dev/null 2>&1 &&
+  /usr/bin/curl -fsS "${URL}static/app.css?v=4" >/dev/null 2>&1 &&
+  /usr/bin/curl -fsS "${URL}static/app.js?v=6" >/dev/null 2>&1 &&
+  /usr/bin/curl -fsS "${URL}api/status" >/dev/null 2>&1
+}
+
+if /usr/sbin/lsof -nP -iTCP:8765 -sTCP:LISTEN >/dev/null 2>&1; then
+  if healthy_server; then
+    /usr/bin/open "$URL"
+    exit 0
+  fi
+
+  STALE_PID="$(/usr/sbin/lsof -tiTCP:8765 -sTCP:LISTEN 2>/dev/null | /usr/bin/head -n 1)"
+  if [[ -n "$STALE_PID" ]]; then
+    /bin/kill "$STALE_PID" >/dev/null 2>&1
+    /bin/sleep 0.5
+  fi
+fi
+
+if [[ ! -x ".venv/bin/python" ]]; then
+  /usr/bin/osascript -e 'display alert "Spectral Geometry Radar cannot start" message "The local Python environment is missing. Open the README and run the installation steps once." as warning'
+  exit 1
+fi
+
+/usr/bin/nohup ".venv/bin/python" -m arxiv_radar web --host 127.0.0.1 --port 8765 --no-open > "$LOG_FILE" 2>&1 &
+echo $! > "$PID_FILE"
+
+for _ in {1..30}; do
+  if /usr/bin/curl -fsS "$URL" >/dev/null 2>&1; then
+    /usr/bin/open "$URL"
+    exit 0
+  fi
+  /bin/sleep 0.2
+done
+
+/usr/bin/open "$URL"

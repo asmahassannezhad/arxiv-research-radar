@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ site_title }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}?v=5">
+</head>
+<body>
+  <header class="masthead">
+    <div>
+      <p class="eyebrow">{{ eyebrow }}</p>
+      <h1>{{ site_title }}</h1>
+      <p class="lede">{{ tagline }}</p>
+    </div>
+  </header>
+
+  <main>
+    <section class="controls panel">
+      <label>Browse <select id="dateMode"><option value="recent">Recent window</option><option value="today">Today</option><option value="specific">Specific day</option></select></label>
+      <label>Window <select id="days"><option value="7">7 days</option><option value="30" selected>30 days</option><option value="60">60 days</option></select></label>
+      <label id="specificDateLabel" hidden>Date <input id="targetDate" type="date"></label>
+      <label>Keep <select id="topCount"><option value="5">Top 5</option><option value="10" selected>Top 10</option><option value="20">Top 20</option></select></label>
+      <button class="primary" id="runButton">Run radar</button>
+      <span class="status" id="runStatus">Ready</span>
+    </section>
+
+    <section class="summary" id="summary"></section>
+    <p class="learning-note">Your choices are remembered. “Very relevant” is promoted into the best matches; “Not relevant” moves outside the cut and teaches the radar what to avoid next time. Every score is computed locally from the abstract and metadata — no external services are used.</p>
+
+    <nav class="tabs">
+      <button class="tab active" data-tab="top">Best matches <span id="topCountLabel"></span></button>
+      <button class="tab" data-tab="ignored">Outside the cut <span id="ignoredCountLabel"></span></button>
+    </nav>
+
+    <section id="paperList" class="paper-list"></section>
+  </main>
+
+  <script src="{{ url_for('static', filename='app.js') }}?v=7"></script>
+</body>
+</html>

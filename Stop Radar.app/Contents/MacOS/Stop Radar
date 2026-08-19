@@ -1,0 +1,24 @@
+#!/bin/zsh
+set -u
+
+APP_MACOS_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(cd "$APP_MACOS_DIR/../../.." && pwd)"
+cd "$PROJECT_DIR" || exit 1
+
+PID_FILE=".arxiv-radar/web.pid"
+
+if [[ -f "$PID_FILE" ]]; then
+  PID="$(cat "$PID_FILE")"
+  if [[ "$PID" =~ '^[0-9]+$' ]] && /bin/kill -0 "$PID" >/dev/null 2>&1; then
+    /bin/kill "$PID" >/dev/null 2>&1
+    /bin/rm -f "$PID_FILE"
+    exit 0
+  fi
+fi
+
+PID="$(/usr/sbin/lsof -tiTCP:8765 -sTCP:LISTEN 2>/dev/null | /usr/bin/head -n 1)"
+if [[ -n "$PID" ]]; then
+  /bin/kill "$PID" >/dev/null 2>&1
+fi
+
+/bin/rm -f "$PID_FILE"

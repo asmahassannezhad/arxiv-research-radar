@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "arxiv-research-radar"
+version = "0.2.0"
+description = "A transparent, configurable arXiv research radar"
+requires-python = ">=3.11"
+dependencies = [
+    "flask>=3.0,<4",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<9"]
+
+[project.scripts]
+arxiv-radar = "arxiv_radar.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
